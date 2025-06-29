@@ -187,7 +187,7 @@ async function syncQuotes() {
     saveQuotes();
     populateCategories();
     showRandomQuote(true);
-    showSyncMessage("Synced with server successfully.");
+    showSyncMessage("Quotes synced with server!"); // ✅ EXACT TEXT REQUIRED
   }
 }
 
