@@ -1,28 +1,46 @@
-// Step 1: Quote Array
-let quotes = [
-  { text: "The best way to get started is to quit talking and begin doing.", category: "Motivation" },
-  { text: "Life is what happens when you're busy making other plans.", category: "Life" }
-];
+let quotes = [];
 
-// Step 2: Function to Show Random Quote
+function loadQuotes() {
+  const stored = localStorage.getItem("quotes");
+  if (stored) {
+    quotes = JSON.parse(stored);
+  } else {
+    quotes = [
+      {
+        text: "The best way to get started is to quit talking and begin doing.",
+        category: "Motivation",
+      },
+      {
+        text: "Life is what happens when you're busy making other plans.",
+        category: "Life",
+      }
+    ];
+  }
+}
+
+function saveQuotes() {
+  localStorage.setItem("quotes", JSON.stringify(quotes));
+}
+
 function showRandomQuote() {
+  if (quotes.length === 0) return;
+
   const randomIndex = Math.floor(Math.random() * quotes.length);
   const quote = quotes[randomIndex];
   const displayDiv = document.getElementById("quoteDisplay");
   displayDiv.innerHTML = `<p>"${quote.text}"<br><em>- ${quote.category}</em></p>`;
+
+  sessionStorage.setItem("lastQuote", JSON.stringify(quote));
 }
 
-// Step 3: Event Listener for Show Quote Button
-document.getElementById("newQuote").addEventListener("click", showRandomQuote);
-
-// Step 4: Add Quote Function
 function addQuote() {
   const text = document.getElementById("newQuoteText").value.trim();
   const category = document.getElementById("newQuoteCategory").value.trim();
 
   if (text && category) {
     quotes.push({ text, category });
-    showRandomQuote(); // update display after adding
+    saveQuotes();
+    showRandomQuote();
     document.getElementById("newQuoteText").value = "";
     document.getElementById("newQuoteCategory").value = "";
   } else {
@@ -30,7 +48,6 @@ function addQuote() {
   }
 }
 
-// Step 5: Create Form Dynamically (as required)
 function createAddQuoteForm() {
   const formContainer = document.createElement("div");
 
@@ -53,5 +70,39 @@ function createAddQuoteForm() {
   document.body.appendChild(formContainer);
 }
 
-// Step 6: Run on Page Load
+function exportToJson() {
+  const blob = new Blob([JSON.stringify(quotes, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "quotes.json";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importFromJsonFile(event) {
+  const fileReader = new FileReader();
+  fileReader.onload = function (e) {
+    const importedQuotes = JSON.parse(e.target.result);
+    quotes.push(...importedQuotes);
+    saveQuotes();
+    alert("Quotes imported successfully!");
+    showRandomQuote();
+  };
+  fileReader.readAsText(event.target.files[0]);
+}
+
+function showLastViewedQuote() {
+  const last = sessionStorage.getItem("lastQuote");
+  if (last) {
+    const quote = JSON.parse(last);
+    document.getElementById("quoteDisplay").innerHTML =
+      `<p>"${quote.text}"<br><em>- ${quote.category}</em></p>`;
+  }
+}
+
+// Initialize App
+loadQuotes();
 createAddQuoteForm();
+document.getElementById("newQuote").addEventListener("click", showRandomQuote);
+showLastViewedQuote();
