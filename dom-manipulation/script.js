@@ -47,6 +47,7 @@ function addQuote() {
     showRandomQuote(true);
     document.getElementById("newQuoteText").value = "";
     document.getElementById("newQuoteCategory").value = "";
+    postQuoteToServer({ text, category });
   } else {
     alert("Please enter both a quote and a category.");
   }
@@ -136,53 +137,64 @@ function showLastViewedQuote() {
   }
 }
 
-// ---------------------------
-// 🔄 Server Sync Logic Below
-// ---------------------------
-
+// ✅ SERVER SYNC SECTION
 const SERVER_URL = "https://jsonplaceholder.typicode.com/posts";
 
 function showSyncMessage(message, color = "green") {
   const statusDiv = document.getElementById("syncStatus");
   statusDiv.textContent = message;
   statusDiv.style.color = color;
-  setTimeout(() => statusDiv.textContent = "", 4000);
+  setTimeout(() => statusDiv.textContent = "", 5000);
 }
 
-function fetchQuotesFromServer() {
-  return fetch(SERVER_URL)
-    .then(res => res.json())
-    .then(data => {
-      const serverQuotes = data.slice(0, 5).map(item => ({
-        text: item.title,
-        category: "Synced"
-      }));
-      return serverQuotes;
+// ✅ Fetch server data using async/await
+async function fetchQuotesFromServer() {
+  try {
+    const res = await fetch(SERVER_URL);
+    const data = await res.json();
+    return data.slice(0, 5).map(item => ({
+      text: item.title,
+      category: "Synced"
+    }));
+  } catch (error) {
+    console.error("Fetch error:", error);
+    showSyncMessage("Failed to fetch from server", "red");
+    return [];
+  }
+}
+
+// ✅ Post new quotes to server
+async function postQuoteToServer(quote) {
+  try {
+    await fetch(SERVER_URL, {
+      method: "POST",
+      body: JSON.stringify(quote),
+      headers: {
+        "Content-Type": "application/json"
+      }
     });
+    console.log("Posted to server:", quote);
+  } catch (err) {
+    console.error("Post error:", err);
+  }
 }
 
-function syncQuotes() {
-  fetchQuotesFromServer()
-    .then(serverQuotes => {
-      // Conflict resolution: Server wins (overwrites local)
-      quotes = [...serverQuotes];
-      saveQuotes();
-      populateCategories();
-      showRandomQuote(true);
-      showSyncMessage("Quotes synced from server.");
-    })
-    .catch(err => {
-      console.error("Sync error:", err);
-      showSyncMessage("Sync failed. Try again later.", "red");
-    });
+// ✅ Sync quotes with conflict resolution
+async function syncQuotes() {
+  const serverQuotes = await fetchQuotesFromServer();
+  if (serverQuotes.length > 0) {
+    quotes = serverQuotes; // Conflict resolution: server wins
+    saveQuotes();
+    populateCategories();
+    showRandomQuote(true);
+    showSyncMessage("Synced with server successfully.");
+  }
 }
 
-// Optional auto-sync every 30s
-// setInterval(syncQuotes, 30000);
+// ✅ Enable periodic sync every 30 seconds
+setInterval(syncQuotes, 30000);
 
-// ---------------------------
-// 🔁 Initialize Everything
-// ---------------------------
+// ✅ INIT
 loadQuotes();
 populateCategories();
 createAddQuoteForm();
