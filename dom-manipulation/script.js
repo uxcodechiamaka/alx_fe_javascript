@@ -71,7 +71,7 @@ function createAddQuoteForm() {
   formContainer.appendChild(categoryInput);
   formContainer.appendChild(addButton);
 
-  document.body.insertBefore(formContainer, document.getElementById("quoteDisplay"));
+  document.body.appendChild(formContainer);
 }
 
 function exportToJson() {
@@ -87,14 +87,44 @@ function exportToJson() {
 function importFromJsonFile(event) {
   const fileReader = new FileReader();
   fileReader.onload = function (e) {
-    const importedQuotes = JSON.parse(e.target.result);
-    quotes.push(...importedQuotes);
-    saveQuotes();
-    populateCategories();
-    alert("Quotes imported successfully!");
-    showRandomQuote(true);
+    try {
+      const importedQuotes = JSON.parse(e.target.result);
+      if (Array.isArray(importedQuotes)) {
+        quotes.push(...importedQuotes);
+        saveQuotes();
+        populateCategories();
+        alert("Quotes imported successfully!");
+        showRandomQuote(true);
+      }
+    } catch (err) {
+      alert("Invalid JSON file.");
+    }
   };
   fileReader.readAsText(event.target.files[0]);
+}
+
+function populateCategories() {
+  const dropdown = document.getElementById("categoryFilter");
+  const current = dropdown.value;
+  dropdown.innerHTML = `<option value="all">All Categories</option>`;
+
+  const uniqueCategories = [...new Set(quotes.map(q => q.category))];
+  uniqueCategories.forEach(cat => {
+    const option = document.createElement("option");
+    option.value = cat;
+    option.textContent = cat;
+    dropdown.appendChild(option);
+  });
+
+  const saved = localStorage.getItem("selectedCategory");
+  if (saved) dropdown.value = saved;
+  else dropdown.value = current || "all";
+}
+
+function filterQuotes() {
+  const selected = document.getElementById("categoryFilter").value;
+  localStorage.setItem("selectedCategory", selected);
+  showRandomQuote(true);
 }
 
 function showLastViewedQuote() {
@@ -106,66 +136,55 @@ function showLastViewedQuote() {
   }
 }
 
-function populateCategories() {
-  const dropdown = document.getElementById("categoryFilter");
-  const current = dropdown.value;
-  dropdown.innerHTML = `<option value="all">All Categories</option>`;
-  const uniqueCategories = [...new Set(quotes.map(q => q.category))];
-  uniqueCategories.forEach(cat => {
-    const option = document.createElement("option");
-    option.value = cat;
-    option.textContent = cat;
-    dropdown.appendChild(option);
-  });
+// ---------------------------
+// 🔄 Server Sync Logic Below
+// ---------------------------
 
-  const saved = localStorage.getItem("selectedCategory");
-  if (saved) {
-    dropdown.value = saved;
-  } else {
-    dropdown.value = current || "all";
-  }
-}
-
-function filterQuotes() {
-  const selected = document.getElementById("categoryFilter").value;
-  localStorage.setItem("selectedCategory", selected);
-  showRandomQuote(true);
-}
-
-// Simulated server endpoint
 const SERVER_URL = "https://jsonplaceholder.typicode.com/posts";
 
 function showSyncMessage(message, color = "green") {
   const statusDiv = document.getElementById("syncStatus");
   statusDiv.textContent = message;
   statusDiv.style.color = color;
-  setTimeout(() => statusDiv.textContent = "", 5000);
+  setTimeout(() => statusDiv.textContent = "", 4000);
 }
 
-function syncWithServer() {
-  fetch(SERVER_URL)
-    .then(response => response.json())
+function fetchQuotesFromServer() {
+  return fetch(SERVER_URL)
+    .then(res => res.json())
     .then(data => {
       const serverQuotes = data.slice(0, 5).map(item => ({
         text: item.title,
         category: "Synced"
       }));
+      return serverQuotes;
+    });
+}
+
+function syncQuotes() {
+  fetchQuotesFromServer()
+    .then(serverQuotes => {
+      // Conflict resolution: Server wins (overwrites local)
       quotes = [...serverQuotes];
       saveQuotes();
       populateCategories();
       showRandomQuote(true);
-      showSyncMessage("Quotes synced with server.");
+      showSyncMessage("Quotes synced from server.");
     })
     .catch(err => {
       console.error("Sync error:", err);
-      showSyncMessage("Failed to sync with server.", "red");
+      showSyncMessage("Sync failed. Try again later.", "red");
     });
 }
 
-// Initialize app on load
+// Optional auto-sync every 30s
+// setInterval(syncQuotes, 30000);
+
+// ---------------------------
+// 🔁 Initialize Everything
+// ---------------------------
 loadQuotes();
 populateCategories();
 createAddQuoteForm();
-document.getElementById("newQuote").addEventListener("click", () => showRandomQuote(true));
 showLastViewedQuote();
-setInterval(syncWithServer, 30000); // Auto-sync every 30 seconds
+document.getElementById("newQuote").addEventListener("click", () => showRandomQuote(true));
