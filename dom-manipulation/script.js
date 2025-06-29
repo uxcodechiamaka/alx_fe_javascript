@@ -6,14 +6,8 @@ function loadQuotes() {
     quotes = JSON.parse(stored);
   } else {
     quotes = [
-      {
-        text: "The best way to get started is to quit talking and begin doing.",
-        category: "Motivation",
-      },
-      {
-        text: "Life is what happens when you're busy making other plans.",
-        category: "Life",
-      }
+      { text: "The best way to get started is to quit talking and begin doing.", category: "Motivation" },
+      { text: "Life is what happens when you're busy making other plans.", category: "Life" }
     ];
   }
 }
@@ -36,7 +30,7 @@ function showRandomQuote(filtered = false) {
 
   const randomIndex = Math.floor(Math.random() * displayList.length);
   const quote = displayList[randomIndex];
-  document.getElementById("quoteDisplay").innerHTML = 
+  document.getElementById("quoteDisplay").innerHTML =
     `<p>"${quote.text}"<br><em>- ${quote.category}</em></p>`;
 
   sessionStorage.setItem("lastQuote", JSON.stringify(quote));
@@ -77,7 +71,7 @@ function createAddQuoteForm() {
   formContainer.appendChild(categoryInput);
   formContainer.appendChild(addButton);
 
-  document.body.appendChild(formContainer);
+  document.body.insertBefore(formContainer, document.getElementById("quoteDisplay"));
 }
 
 function exportToJson() {
@@ -115,9 +109,7 @@ function showLastViewedQuote() {
 function populateCategories() {
   const dropdown = document.getElementById("categoryFilter");
   const current = dropdown.value;
-
   dropdown.innerHTML = `<option value="all">All Categories</option>`;
-
   const uniqueCategories = [...new Set(quotes.map(q => q.category))];
   uniqueCategories.forEach(cat => {
     const option = document.createElement("option");
@@ -140,9 +132,40 @@ function filterQuotes() {
   showRandomQuote(true);
 }
 
-// Initialize
+// Simulated server endpoint
+const SERVER_URL = "https://jsonplaceholder.typicode.com/posts";
+
+function showSyncMessage(message, color = "green") {
+  const statusDiv = document.getElementById("syncStatus");
+  statusDiv.textContent = message;
+  statusDiv.style.color = color;
+  setTimeout(() => statusDiv.textContent = "", 5000);
+}
+
+function syncWithServer() {
+  fetch(SERVER_URL)
+    .then(response => response.json())
+    .then(data => {
+      const serverQuotes = data.slice(0, 5).map(item => ({
+        text: item.title,
+        category: "Synced"
+      }));
+      quotes = [...serverQuotes];
+      saveQuotes();
+      populateCategories();
+      showRandomQuote(true);
+      showSyncMessage("Quotes synced with server.");
+    })
+    .catch(err => {
+      console.error("Sync error:", err);
+      showSyncMessage("Failed to sync with server.", "red");
+    });
+}
+
+// Initialize app on load
 loadQuotes();
 populateCategories();
 createAddQuoteForm();
 document.getElementById("newQuote").addEventListener("click", () => showRandomQuote(true));
 showLastViewedQuote();
+setInterval(syncWithServer, 30000); // Auto-sync every 30 seconds
